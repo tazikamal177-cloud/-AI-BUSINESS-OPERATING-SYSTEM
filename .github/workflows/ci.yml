@@ -1,0 +1,160 @@
+name: CI
+
+# Triggers:
+#   - PR targeting main: required check, blocks merge if red
+#   - push to main: post-merge validation
+#   - manual: workflow_dispatch for ad-hoc runs
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Cancel in-progress runs for the same ref (saves CI minutes)
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/aibos-backend
+  FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/aibos-frontend
+
+jobs:
+  # ──────────────────────────────────────────────────────
+  # Job 1 — Backend: lint, typecheck, unit tests
+  # ──────────────────────────────────────────────────────
+  backend-test:
+    name: Backend — lint + test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: aibos
+          POSTGRES_PASSWORD: aibos_secret_2026
+          POSTGRES_DB: aibos_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U aibos -d aibos_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://aibos:aibos_secret_2026@localhost:5432/aibos_test?schema=public
+      REDIS_HOST: localhost
+      REDIS_PORT: "6379"
+      JWT_SECRET: ci-jwt-secret-must-be-at-least-16-chars-long
+      JWT_REFRESH_SECRET: ci-jwt-refresh-secret-must-be-at-least-16-chars-long
+      ENCRYPTION_KEY: ci-encryption-key-must-be-32-chars-long-please
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Apply schema
+        run: npx prisma db push --skip-generate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Unit tests
+        run: npm test
+
+  # ──────────────────────────────────────────────────────
+  # Job 2 — Backend: build Docker image (validates Dockerfile)
+  # ──────────────────────────────────────────────────────
+  backend-build:
+    name: Backend — docker build
+    runs-on: ubuntu-latest
+    needs: backend-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: false
+          tags: ${{ env.BACKEND_IMAGE }}:ci-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ──────────────────────────────────────────────────────
+  # Job 3 — Frontend: lint, typecheck, build
+  # ──────────────────────────────────────────────────────
+  frontend-test:
+    name: Frontend — lint + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+
+  # ──────────────────────────────────────────────────────
+  # Job 4 — Frontend: build Docker image
+  # ──────────────────────────────────────────────────────
+  frontend-build:
+    name: Frontend — docker build
+    runs-on: ubuntu-latest
+    needs: frontend-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: false
+          tags: ${{ env.FRONTEND_IMAGE }}:ci-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

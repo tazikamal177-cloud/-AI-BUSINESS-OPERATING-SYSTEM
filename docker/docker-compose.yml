@@ -1,0 +1,74 @@
+name: aibos
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: aibos-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: aibos
+      POSTGRES_PASSWORD: aibos_secret_2026
+      POSTGRES_DB: aibos
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aibos -d aibos"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: aibos-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: aibos-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: aibos_minio
+      MINIO_ROOT_PASSWORD: aibos_minio_secret_2026
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: aibos-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 aibos_minio aibos_minio_secret_2026 &&
+      mc mb -p local/aibos-uploads || true &&
+      mc anonymous set download local/aibos-uploads || true &&
+      echo 'MinIO bucket aibos-uploads ready'
+      "
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
