@@ -1,0 +1,54 @@
+# ──── Docker / nginx staging ────
+docker/nginx/certs/
+!docker/nginx/certs/.gitkeep
+
+# Logs
+*.log
+docker/nginx/logs/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local docker overrides
+docker-compose.override.yml
+
+# ──── Node / JS dependencies ────
+node_modules/
+jspm_packages/
+
+# ──── Build artefacts ────
+dist/
+build/
+out/
+.next/
+.turbo/
+*.tsbuildinfo
+
+# ──── Test artefacts ────
+coverage/
+.nyc_output/
+*.lcov
+
+# ──── Environment files (NEVER commit secrets) ────
+.env
+.env.*
+!.env.example
+!.env.staging.example
+
+# ──── Uploaded files ────
+uploads/
+backend/uploads/
+
+# ──── Docker volumes / data ────
+postgres_data/
+redis_data/
+minio_data/
+
+# ──── Prisma local artefacts ────
+prisma/dev.db
+prisma/dev.db-journal
+prisma/*.db
+prisma/*.db-journal
