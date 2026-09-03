@@ -1,0 +1,877 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== USERS & AUTH ====================
+
+model User {
+  id                String    @id @default(uuid())
+  email             String    @unique
+  passwordHash      String    @map("password_hash")
+  firstName         String    @map("first_name")
+  lastName          String    @map("last_name")
+  avatarUrl         String?   @map("avatar_url")
+  isEmailVerified   Boolean   @default(false) @map("is_email_verified")
+  emailVerifiedAt   DateTime? @map("email_verified_at")
+  status            UserStatus @default(ACTIVE)
+  lastLoginAt       DateTime? @map("last_login_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  memberships       OrganizationMember[]
+  sessions          Session[]
+  refreshTokens     RefreshToken[]
+  createdAgents     Agent[]   @relation("AgentCreatedBy")
+  conversations     Conversation[]
+  tasks             Task[]    @relation("TaskAssignedTo")
+  auditLogs         AuditLog[]
+  uploadedDocuments Document[] @relation("DocumentUploadedBy")
+
+  @@map("users")
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("sessions")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+// ==================== ORGANIZATIONS ====================
+
+model Organization {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  logoUrl     String?  @map("logo_url")
+  industry    String?
+  country     String?
+  language    String   @default("en")
+  timezone    String   @default("UTC")
+  settings    Json?
+  status      OrganizationStatus @default(ACTIVE)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  members     OrganizationMember[]
+  agents      Agent[]
+  knowledgeBases KnowledgeBase[]
+  conversations Conversation[]
+  tasks       Task[]
+  integrations Integration[]
+  workflows   Workflow[]
+  workflowRuns WorkflowRun[]
+  documents   Document[]
+  usageRecords UsageRecord[]
+  auditLogs   AuditLog[]
+  subscription Subscription?
+
+  @@map("organizations")
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+}
+
+model OrganizationMember {
+  id              String   @id @default(uuid())
+  organizationId  String   @map("organization_id")
+  userId          String   @map("user_id")
+  role            MemberRole @default(OPERATOR)
+  permissions     Json?
+  invitedBy       String?  @map("invited_by")
+  joinedAt        DateTime @default(now()) @map("joined_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@index([userId])
+  @@map("organization_members")
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MANAGER
+  OPERATOR
+  VIEWER
+}
+
+// ==================== AGENTS ====================
+
+model Agent {
+  id                  String   @id @default(uuid())
+  organizationId      String   @map("organization_id")
+  name                String
+  slug                String
+  description         String?
+  avatarUrl           String?  @map("avatar_url")
+  role                String
+  objective           String?
+  systemInstructions  String   @map("system_instructions")
+  personality         String?
+  tone                String   @default("professional")
+  language            String   @default("en")
+  modelProvider       String   @default("openai") @map("model_provider")
+  modelName           String   @default("gpt-4o-mini") @map("model_name")
+  temperature         Float    @default(0.7)
+  maxTokens           Int      @default(4096) @map("max_tokens")
+  status              AgentStatus @default(DRAFT)
+  deployedVersionId   String?  @unique @map("deployed_version_id")
+  isTemplate          Boolean  @default(false) @map("is_template")
+  templateCategory    String?  @map("template_category")
+  guardrails          Json?
+  maxToolCalls        Int      @default(10) @map("max_tool_calls")
+  timeoutSeconds      Int      @default(120) @map("timeout_seconds")
+  createdBy           String   @map("created_by")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+  deletedAt           DateTime? @map("deleted_at")
+
+  // Relations
+  organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  creator             User         @relation("AgentCreatedBy", fields: [createdBy], references: [id])
+  deployedVersion     AgentVersion? @relation("AgentDeployedVersion", fields: [deployedVersionId], references: [id])
+  versions            AgentVersion[] @relation("AgentVersions")
+  agentTools          AgentTool[]
+  agentKnowledge      AgentKnowledge[]
+  conversations       Conversation[]
+  workflowNodes       WorkflowNode[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([isTemplate])
+  @@index([deletedAt])
+  @@map("agents")
+}
+
+enum AgentStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+model AgentVersion {
+  id          String   @id @default(uuid())
+  agentId     String   @map("agent_id")
+  version     Int
+  config      Json     // full snapshot: instructions, model, temperature, tools, knowledge, guardrails
+  changeNotes String?  @map("change_notes")
+  createdBy   String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  agent       Agent    @relation("AgentVersions", fields: [agentId], references: [id], onDelete: Cascade)
+  deployedFor Agent?   @relation("AgentDeployedVersion")
+
+  @@unique([agentId, version])
+  @@index([agentId])
+  @@map("agent_versions")
+}
+
+model AgentTool {
+  id            String   @id @default(uuid())
+  agentId       String   @map("agent_id")
+  toolId        String   @map("tool_id")
+  configuration Json?
+  permissions   Json?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  agent         Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  tool          Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, toolId])
+  @@index([agentId])
+  @@index([toolId])
+  @@map("agent_tools")
+}
+
+model AgentKnowledge {
+  id              String   @id @default(uuid())
+  agentId         String   @map("agent_id")
+  knowledgeBaseId String   @map("knowledge_base_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  agent           Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  knowledgeBase   KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, knowledgeBaseId])
+  @@index([agentId])
+  @@index([knowledgeBaseId])
+  @@map("agent_knowledge")
+}
+
+// ==================== KNOWLEDGE BASE ====================
+
+model KnowledgeBase {
+  id              String   @id @default(uuid())
+  organizationId  String   @map("organization_id")
+  name            String
+  description     String?
+  embeddingModel  String   @default("text-embedding-3-small") @map("embedding_model")
+  chunkSize       Int      @default(1000) @map("chunk_size")
+  chunkOverlap    Int      @default(200) @map("chunk_overlap")
+  status          KnowledgeBaseStatus @default(ACTIVE)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+
+  // Relations
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  documents       Document[]
+  agentKnowledge  AgentKnowledge[]
+
+  @@index([organizationId])
+  @@index([organizationId, deletedAt])
+  @@map("knowledge_bases")
+}
+
+enum KnowledgeBaseStatus {
+  ACTIVE
+  PROCESSING
+  ERROR
+}
+
+model Document {
+  id              String   @id @default(uuid())
+  knowledgeBaseId String   @map("knowledge_base_id")
+  organizationId  String   @map("organization_id")
+  filename        String
+  originalName    String   @map("original_name")
+  fileType        String   @map("file_type")
+  fileSize        Int      @map("file_size")
+  fileUrl         String   @map("file_url")
+  mimeType        String   @map("mime_type")
+  status          DocumentStatus @default(PENDING)
+  metadata        Json?
+  error           String?
+  uploadedBy      String   @map("uploaded_by")
+  processedAt     DateTime? @map("processed_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+
+  // Relations
+  knowledgeBase   KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  organization    Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploader        User          @relation("DocumentUploadedBy", fields: [uploadedBy], references: [id])
+  chunks          DocumentChunk[]
+
+  @@index([knowledgeBaseId])
+  @@index([organizationId])
+  @@index([status])
+  @@index([organizationId, deletedAt])
+  @@map("documents")
+}
+
+enum DocumentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model DocumentChunk {
+  id              String   @id @default(uuid())
+  documentId      String   @map("document_id")
+  organizationId  String   @map("organization_id") // denormalized for RLS + RAG filtering
+  content         String
+  chunkIndex      Int      @map("chunk_index")
+  tokenCount      Int?     @map("token_count")
+  metadata        Json?
+  embedding       Unsupported("vector(1536)")?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  document        Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@index([organizationId])
+  @@map("document_chunks")
+}
+
+// ==================== CONVERSATIONS ====================
+
+model Conversation {
+  id              String   @id @default(uuid())
+  organizationId  String   @map("organization_id")
+  agentId         String   @map("agent_id")
+  userId          String   @map("user_id")
+  title           String?
+  status          ConversationStatus @default(ACTIVE)
+  metadata        Json?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  archivedAt      DateTime? @map("archived_at")
+  deletedAt       DateTime? @map("deleted_at")
+
+  // Relations
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  agent           Agent        @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages        Message[]
+
+  @@index([organizationId])
+  @@index([organizationId, agentId])
+  @@index([userId])
+  @@index([organizationId, deletedAt])
+  @@map("conversations")
+}
+
+enum ConversationStatus {
+  ACTIVE
+  ARCHIVED
+  DELETED
+}
+
+model Message {
+  id              String   @id @default(uuid())
+  conversationId  String   @map("conversation_id")
+  role            MessageRole
+  content         String
+  toolCalls       Json?    @map("tool_calls")
+  toolResults     Json?    @map("tool_results")
+  tokens          Int?
+  metadata        Json?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([conversationId, createdAt])
+  @@map("messages")
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+  TOOL
+}
+
+// ==================== TASKS ====================
+
+model Task {
+  id              String   @id @default(uuid())
+  organizationId  String   @map("organization_id")
+  agentId         String?  @map("agent_id")
+  assignedTo      String?  @map("assigned_to")
+  title           String
+  description     String?
+  status          TaskStatus @default(PENDING)
+  priority        TaskPriority @default(MEDIUM)
+  dueDate         DateTime? @map("due_date")
+  source          String?
+  sourceId        String?  @map("source_id")
+  result          Json?
+  metadata        Json?
+  completedAt     DateTime? @map("completed_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignee        User?        @relation("TaskAssignedTo", fields: [assignedTo], references: [id])
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([assignedTo])
+  @@map("tasks")
+}
+
+enum TaskStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  REQUIRES_APPROVAL
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// ==================== TOOLS ====================
+
+model Tool {
+  id              String   @id @default(uuid())
+  organizationId  String?  @map("organization_id")
+  slug            String   // unique global registry key, e.g. "send_email", "create_calendar_event"
+  name            String
+  description     String
+  type            ToolType
+  provider        String?  // "email", "google_calendar", "webhook", "hubspot"...
+  integrationId   String?  @map("integration_id")
+  inputSchema     Json     @map("input_schema")
+  outputSchema    Json?    @map("output_schema")
+  configuration   Json?
+  permissions     Json?
+  riskLevel       RiskLevel @default(LOW) @map("risk_level")
+  status          ToolStatus @default(ACTIVE)
+  isBuiltIn       Boolean  @default(true) @map("is_built_in")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  agentTools      AgentTool[]
+  executions      ToolExecution[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@index([type])
+  @@index([provider])
+  @@map("tools")
+}
+
+enum ToolType {
+  BUILT_IN
+  INTEGRATION
+  CUSTOM
+  WEBHOOK
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum ToolStatus {
+  ACTIVE
+  INACTIVE
+  DEPRECATED
+}
+
+model ToolExecution {
+  id              String   @id @default(uuid())
+  toolId          String   @map("tool_id")
+  organizationId  String   @map("organization_id")
+  agentId         String?  @map("agent_id")
+  conversationId  String?  @map("conversation_id")
+  messageId       String?  @map("message_id")
+  input           Json
+  output          Json?
+  status          ExecutionStatus @default(PENDING)
+  error           String?
+  durationMs      Int?     @map("duration_ms")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  tool            Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+
+  @@index([toolId])
+  @@index([organizationId])
+  @@index([createdAt])
+  @@map("tool_executions")
+}
+
+enum ExecutionStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+// ==================== INTEGRATIONS ====================
+
+model Integration {
+  id              String   @id @default(uuid())
+  organizationId  String   @map("organization_id")
+  provider        String
+  name            String
+  type            IntegrationType
+  status          IntegrationStatus @default(ACTIVE)
+  configuration   Json?
+  metadata        Json?
+  lastSyncAt      DateTime? @map("last_sync_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  credentials     IntegrationCredential[]
+
+  @@unique([organizationId, provider])
+  @@index([organizationId])
+  @@map("integrations")
+}
+
+enum IntegrationType {
+  COMMUNICATION
+  CRM
+  COMMERCE
+  PRODUCTIVITY
+  CUSTOM
+}
+
+enum IntegrationStatus {
+  ACTIVE
+  INACTIVE
+  ERROR
+  DISCONNECTED
+}
+
+model IntegrationCredential {
+  id              String   @id @default(uuid())
+  integrationId   String   @map("integration_id")
+  credentialType  String   @map("credential_type")
+  encryptedValue  String   @map("encrypted_value")
+  expiresAt       DateTime? @map("expires_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  integration     Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@index([integrationId])
+  @@map("integration_credentials")
+}
+
+// ==================== WORKFLOWS ====================
+
+model Workflow {
+  id              String   @id @default(uuid())
+  organizationId  String   @map("organization_id")
+  name            String
+  description     String?
+  trigger         TriggerType
+  triggerConfig   Json     @map("trigger_config")
+  definition      Json     // canonical graph { nodes, edges } — source of truth
+  version         Int      @default(1)
+  status          WorkflowStatus @default(DRAFT)
+  metadata        Json?
+  createdBy       String?  @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+
+  // Relations
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  nodes           WorkflowNode[]
+  edges           WorkflowEdge[]
+  runs            WorkflowRun[]
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([organizationId, deletedAt])
+  @@map("workflows")
+}
+
+enum TriggerType {
+  WEBHOOK
+  SCHEDULE
+  MANUAL
+  INCOMING_MESSAGE
+  NEW_LEAD
+  NEW_EMAIL
+  FORM_SUBMISSION
+}
+
+enum WorkflowStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+model WorkflowNode {
+  id              String   @id @default(uuid())
+  workflowId      String   @map("workflow_id")
+  type            NodeType
+  name            String
+  agentId         String?  @map("agent_id")
+  configuration   Json
+  positionX       Float    @map("position_x")
+  positionY       Float    @map("position_y")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  workflow        Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  agent           Agent?   @relation(fields: [agentId], references: [id])
+  outgoingEdges   WorkflowEdge[] @relation("SourceNode")
+  incomingEdges   WorkflowEdge[] @relation("TargetNode")
+
+  @@index([workflowId])
+  @@map("workflow_nodes")
+}
+
+enum NodeType {
+  TRIGGER
+  CONDITION
+  AGENT
+  ACTION
+  WAIT
+  PARALLEL
+  END
+}
+
+model WorkflowEdge {
+  id              String   @id @default(uuid())
+  workflowId      String   @map("workflow_id")
+  sourceNodeId    String   @map("source_node_id")
+  targetNodeId    String   @map("target_node_id")
+  condition       Json?
+  label           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  // Relations
+  workflow        Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  sourceNode      WorkflowNode @relation("SourceNode", fields: [sourceNodeId], references: [id])
+  targetNode      WorkflowNode @relation("TargetNode", fields: [targetNodeId], references: [id])
+
+  @@index([workflowId])
+  @@map("workflow_edges")
+}
+
+model WorkflowRun {
+  id              String   @id @default(uuid())
+  organizationId  String   @map("organization_id")
+  workflowId      String   @map("workflow_id")
+  workflowVersion Int      @map("workflow_version")
+  status          WorkflowRunStatus @default(PENDING)
+  triggerData     Json?    @map("trigger_data")
+  currentNode     String?  @map("current_node")
+  context         Json?
+  snapshot        Json?    // immutable snapshot of workflow.definition at run start
+  error           String?
+  startedAt       DateTime @default(now()) @map("started_at")
+  completedAt     DateTime? @map("completed_at")
+
+  // Relations
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workflow        Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  logs            WorkflowRunLog[]
+
+  @@index([organizationId])
+  @@index([workflowId])
+  @@index([status])
+  @@index([organizationId, startedAt])
+  @@map("workflow_runs")
+}
+
+enum WorkflowRunStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model WorkflowRunLog {
+  id              String   @id @default(uuid())
+  workflowRunId   String   @map("workflow_run_id")
+  nodeId          String?  @map("node_id")
+  action          String
+  status          String
+  input           Json?
+  output          Json?
+  error           String?
+  durationMs      Int?     @map("duration_ms")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  workflowRun     WorkflowRun @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
+
+  @@index([workflowRunId])
+  @@map("workflow_run_logs")
+}
+
+// ==================== USAGE & BILLING ====================
+
+model UsageRecord {
+  id              String   @id @default(uuid())
+  organizationId  String   @map("organization_id")
+  userId          String?  @map("user_id")
+  agentId         String?  @map("agent_id")
+  agentVersionId  String?  @map("agent_version_id")
+  conversationId  String?  @map("conversation_id")
+  messageId       String?  @map("message_id")
+  modelProvider   String   @map("model_provider")
+  modelName       String   @map("model_name")
+  inputTokens     Int      @map("input_tokens")
+  outputTokens    Int      @map("output_tokens")
+  totalTokens     Int      @map("total_tokens")
+  estimatedCost   Decimal  @map("estimated_cost") @db.Decimal(10, 6)
+  operation       String
+  monthBucket     String   @map("month_bucket") // 'YYYY-MM' for fast aggregation
+  metadata        Json?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([organizationId, monthBucket])
+  @@index([organizationId, createdAt])
+  @@index([agentId])
+  @@index([userId])
+  @@map("usage_records")
+}
+
+model Plan {
+  id              String   @id @default(uuid())
+  name            String   @unique
+  slug            String   @unique
+  description     String?
+  priceMonthly    Decimal  @map("price_monthly") @db.Decimal(10, 2)
+  priceYearly     Decimal  @map("price_yearly") @db.Decimal(10, 2)
+  currency        String   @default("EUR")
+  features        Json
+  limits          Json
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  subscriptions   Subscription[]
+
+  @@map("plans")
+}
+
+model Subscription {
+  id              String   @id @default(uuid())
+  organizationId  String   @unique @map("organization_id")
+  planId          String   @map("plan_id")
+  status          SubscriptionStatus @default(ACTIVE)
+  currentPeriodStart DateTime @map("current_period_start")
+  currentPeriodEnd   DateTime @map("current_period_end")
+  cancelAtPeriodEnd  Boolean @default(false) @map("cancel_at_period_end")
+  paymentProvider    String? @map("payment_provider")
+  paymentMethodId    String? @map("payment_method_id")
+  externalId         String? @map("external_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan            Plan         @relation(fields: [planId], references: [id])
+
+  @@index([planId])
+  @@map("subscriptions")
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  UNPAID
+  TRIALING
+}
+
+// ==================== AUDIT LOG ====================
+
+model AuditLog {
+  id              String   @id @default(uuid())
+  organizationId  String   @map("organization_id")
+  userId          String?  @map("user_id")
+  action          String
+  resourceType    String   @map("resource_type")
+  resourceId      String?  @map("resource_id")
+  metadata        Json?
+  ipAddress       String?  @map("ip_address")
+  userAgent       String?  @map("user_agent")
+  result          String   @default("SUCCESS")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  // Relations
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user            User?        @relation(fields: [userId], references: [id])
+
+  @@index([organizationId])
+  @@index([organizationId, createdAt])
+  @@index([userId])
+  @@index([action])
+  @@map("audit_logs")
+}
+
+// ==================== NOTIFICATIONS ====================
+
+model Notification {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+  organizationId  String?  @map("organization_id")
+  type            String
+  title           String
+  message         String
+  data            Json?
+  isRead          Boolean  @default(false) @map("is_read")
+  readAt          DateTime? @map("read_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+// ==================== MEMORY ====================
+
+model Memory {
+  id              String   @id @default(uuid())
+  organizationId  String   @map("organization_id")
+  userId          String?  @map("user_id")
+  agentId         String?  @map("agent_id")
+  conversationId  String?  @map("conversation_id")
+  type            MemoryType
+  content         String
+  importance      Float    @default(0.5)
+  metadata        Json?
+  embedding       Unsupported("vector(1536)")?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([agentId])
+  @@index([type])
+  @@map("memories")
+}
+
+enum MemoryType {
+  SHORT_TERM
+  LONG_TERM
+  BUSINESS
+}
