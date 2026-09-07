@@ -1,0 +1,21 @@
+-- ============================================================================
+-- AIBOS — Enable pgvector extension (dedicated migration)
+-- ============================================================================
+--
+-- This migration explicitly enables the `vector` extension on databases
+-- that apply migrations via `prisma migrate deploy` (staging, production).
+--
+-- The CI workflow uses `prisma db push` (schema sync) instead of
+-- `prisma migrate deploy`, so it needs a separate step to run
+-- `CREATE EXTENSION IF NOT EXISTS vector;` — see the "Enable pgvector
+-- extension" step in .github/workflows/ci.yml.
+--
+-- In environments where `prisma migrate deploy` IS used (staging,
+-- production via the `prisma:deploy` script), this migration ensures
+-- the extension is active before any table using the `vector(N)` type
+-- is created.
+--
+-- Idempotent: safe to run multiple times.
+-- ============================================================================
+
+CREATE EXTENSION IF NOT EXISTS vector;

@@ -77,6 +77,11 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
+      - name: Enable pgvector extension
+        run: |
+          PGPASSWORD=aibos_secret_2026 psql -h localhost -U aibos -d aibos_test \
+            -c "CREATE EXTENSION IF NOT EXISTS vector;"
+
       - name: Apply schema
         run: npx prisma db push --skip-generate
 
