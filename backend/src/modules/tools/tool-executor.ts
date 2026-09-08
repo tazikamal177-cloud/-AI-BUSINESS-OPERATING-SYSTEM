@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import Ajv, { ValidateFunction } from 'ajv';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -188,7 +188,7 @@ export class ToolExecutor {
   }
 
   /** Build a ToolSpec list for the model from the agent's attached tools. */
-  async buildSpecsForAgent(agentId: string, orgId: string): Promise<ToolSpec[]> {
+  async buildSpecsForAgent(agentId: string, _orgId: string): Promise<ToolSpec[]> {
     const attached = await this.prisma.agentTool.findMany({
       where: { agentId },
       include: { tool: true },
@@ -280,7 +280,7 @@ export class ToolExecutor {
     start: number,
     message: string,
     code: string,
-    httpStatus: number,
+    _httpStatus: number,
   ): Promise<ToolExecutionResult> {
     await this.audit.log({
       organizationId: ctx.organizationId,
@@ -290,7 +290,6 @@ export class ToolExecutor {
       metadata: { toolName: call.name, arguments: call.arguments, error: message },
       result: 'FAILURE',
     });
-    const e = httpStatus === 404 ? new NotFoundException(message) : new BadRequestException({ code, message });
     return { toolCallId: call.id, toolName: call.name, ok: false, error: message, durationMs: Date.now() - start };
   }
 }

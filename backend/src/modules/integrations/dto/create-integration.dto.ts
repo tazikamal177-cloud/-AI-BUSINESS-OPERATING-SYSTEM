@@ -1,4 +1,4 @@
-import { IsEnum, IsObject, IsOptional, IsString, Length, MinLength } from 'class-validator';
+import { IsEnum, IsObject, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class CreateIntegrationDto {
   @IsString()

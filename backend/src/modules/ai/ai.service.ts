@@ -1,15 +1,12 @@
-import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AiGatewayService } from './gateway/ai-gateway.service';
 import {
   ChatMessage,
   ChatRequest,
   ChatResponse,
-  ChatRole,
   ProviderId,
-  StreamChunk,
   ToolSpec,
-  UnifiedToolCall,
 } from './types/provider.types';
 
 // ─────────────────────── Public types (re-exports for compatibility) ───────────────────────

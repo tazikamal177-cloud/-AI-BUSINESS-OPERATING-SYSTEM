@@ -9,7 +9,7 @@ import { AgentNodeHandler } from './handlers/agent.handler';
 import { ActionNodeHandler } from './handlers/action.handler';
 import { ConditionHandler } from './handlers/condition.handler';
 import { ParallelHandler } from './handlers/parallel.handler';
-import { WorkflowGraph, WorkflowNode, WorkflowEdge, WorkflowRunContext, NodeExecutionResult } from './graph.types';
+import { WorkflowGraph, WorkflowNode, WorkflowRunContext, NodeExecutionResult } from './graph.types';
 import { getNode, getOutgoingEdges } from './graph.validation';
 import { evaluateEdgeCondition } from './graph.conditions';
 

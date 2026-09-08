@@ -1,5 +1,4 @@
 import { Global, Module } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { OpenAiProvider } from './providers/openai.provider';
 import { AnthropicProvider } from './providers/anthropic.provider';
 import { GeminiProvider } from './providers/gemini.provider';

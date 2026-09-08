@@ -327,7 +327,7 @@ export default function AgentChatPage() {
                     </div>
                     <div className="flex-1 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900">
                       {streamedContent || (
-                        <span className="text-gray-400">L'agent réfléchit...</span>
+                        <span className="text-gray-400">L&apos;agent réfléchit...</span>
                       )}
                     </div>
                   </div>

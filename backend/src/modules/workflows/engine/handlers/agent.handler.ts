@@ -49,7 +49,7 @@ export class AgentNodeHandler implements NodeHandler {
   }
 
   private interpolate(template: string, ctx: WorkflowRunContext): string {
-    return template.replace(/\{([a-zA-Z0-9_\.]+)\}/g, (_, key) => {
+    return template.replace(/\{([a-zA-Z0-9_.]+)\}/g, (_, key) => {
       const parts = key.split('.');
       let val: any = ctx.vars;
       for (const p of parts) {

@@ -2,7 +2,7 @@ import { Injectable, Logger, NotFoundException, BadRequestException } from '@nes
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AiGatewayService } from '../ai/gateway/ai-gateway.service';
-import { ChatMessage, ToolSpec, UnifiedToolCall } from '../ai/types/provider.types';
+import { ChatMessage, ToolSpec } from '../ai/types/provider.types';
 import { ToolExecutor, ToolExecutionContext } from '../tools/tool-executor';
 import { MemoryService } from '../memory/memory.service';
 import { RagService } from '../knowledge/rag.service';

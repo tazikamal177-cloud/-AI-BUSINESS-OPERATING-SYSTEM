@@ -1,10 +1,9 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
 import { assertValidGraph, validateGraph } from './engine/graph.validation';
-import { WorkflowGraph, WorkflowNode, WorkflowEdge } from './engine/graph.types';
+import { WorkflowGraph } from './engine/graph.types';
 import { WorkflowRunner } from './engine/workflow-runner';
 import { AuditService } from '../audit/audit.service';
 

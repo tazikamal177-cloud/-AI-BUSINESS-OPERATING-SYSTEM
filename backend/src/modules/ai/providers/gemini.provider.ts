@@ -8,7 +8,6 @@ import {
   ProviderError,
   ProviderInfo,
   StreamChunk,
-  ToolSpec,
   UnifiedToolCall,
 } from '../types/provider.types';
 
@@ -81,6 +80,7 @@ export class GeminiProvider implements AIProvider {
     let outputTokens = 0;
     let finishReason: StreamChunk['finishReason'] = 'stop';
 
+    // eslint-disable-next-line no-constant-condition
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;

@@ -6,7 +6,6 @@ import {
   ChatMessage,
   ChatRequest,
   ChatResponse,
-  ModelInfo,
   ProviderError,
   ProviderInfo,
   StreamChunk,

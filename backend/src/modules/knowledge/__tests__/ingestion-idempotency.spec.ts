@@ -17,7 +17,6 @@
  * CRITIQUE 6 finding: the source comment claims idempotence, but the
  * code path does not enforce it. Test 2 will reveal this.
  */
-import { BadRequestException } from '@nestjs/common';
 import { KnowledgeService } from '../knowledge.service';
 
 class FakePrisma {
@@ -82,7 +81,7 @@ class FakeHtmlExtractor { supports = () => false; extract = async () => ({ text:
 class FakeUrlExtractor { supports = () => false; extract = async () => ({ text: '', metadata: {} }); }
 class FakeAudit { log = jest.fn(async () => undefined); }
 class FakeRag { /* unused here */ }
-class FakeConfig { get = jest.fn((k: string) => undefined); }
+class FakeConfig { get = jest.fn((_k: string) => undefined); }
 
 function makeService(overrides: any = {}) {
   const prisma = overrides.prisma ?? new FakePrisma();

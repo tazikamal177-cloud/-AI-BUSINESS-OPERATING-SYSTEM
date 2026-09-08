@@ -2,7 +2,6 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  ConflictException,
   Logger,
 } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
@@ -564,7 +563,6 @@ export class AgentsService {
     if (!agent) throw new NotFoundException('Agent not found');
 
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const sinceStr = since.toISOString().slice(0, 10);
 
     const [
       conversations,

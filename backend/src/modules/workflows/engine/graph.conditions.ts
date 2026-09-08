@@ -26,8 +26,12 @@ export function evaluateEdgeCondition(cond: EdgeCondition | undefined, ctx: Work
   if (cond.kind === 'expression') {
     // Limited safe expression: {var} substitution, then `Function`-eval.
     // Disallow `;` and obvious sandbox escape patterns.
+    // Disable no-useless-escape for the \. in process./global./window. :
+    // these escapes ARE necessary to match a literal dot in the sandbox
+    // deny-list; removing them would change the regex semantics.
+    // eslint-disable-next-line no-useless-escape
     const safe = cond.expression.replace(/[;`\\]|require\(|process\.|global\.|window\./g, '');
-    const expr = safe.replace(/\{([a-zA-Z0-9_\.]+)\}/g, (_, key) => {
+    const expr = safe.replace(/\{([a-zA-Z0-9_.]+)\}/g, (_, key) => {
       const parts = key.split('.');
       let val: any = ctx.vars;
       for (const p of parts) {

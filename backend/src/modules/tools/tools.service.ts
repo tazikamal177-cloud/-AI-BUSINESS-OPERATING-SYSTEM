@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateToolDto } from './dto/create-tool.dto';
 import { EcommerceService } from './ecommerce/ecommerce.service';
-import { buildSavTools, SavToolDefinition } from './ecommerce/sav.tools';
+import { buildSavTools } from './ecommerce/sav.tools';
 import { IntegrationsService } from '../integrations/integrations.service';
 import { EmailConnector } from '../integrations/connectors/email.connector';
 import { GoogleCalendarConnector } from '../integrations/connectors/google-calendar.connector';
@@ -83,7 +83,7 @@ export class ToolsService {
     });
   }
 
-  async getToolsForAgent(agentId: string, orgId: string) {
+  async getToolsForAgent(agentId: string, _orgId: string) {
     const agentTools = await this.prisma.agentTool.findMany({
       where: { agentId },
       include: { tool: true },

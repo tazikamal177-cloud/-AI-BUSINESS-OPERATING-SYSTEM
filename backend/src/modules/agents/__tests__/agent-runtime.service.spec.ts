@@ -41,18 +41,17 @@ class FakePrisma {
   message: { create: jest.Mock; findMany: jest.Mock };
 
   constructor() {
-    const self = this;
     this.agent = {
-      findFirst: jest.fn(async () => self._agent),
+      findFirst: jest.fn(async () => this._agent),
     };
     this.message = {
       create: jest.fn(async ({ data }: any) => {
-        const row = { id: `msg-${self._messages.length + 1}`, ...data };
-        self._messages.push(row);
+        const row = { id: `msg-${this._messages.length + 1}`, ...data };
+        this._messages.push(row);
         return row;
       }),
       findMany: jest.fn(async () =>
-        self._messages
+        this._messages
           .filter((m) => m.conversationId === 'conv-1')
           .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1)),
       ),

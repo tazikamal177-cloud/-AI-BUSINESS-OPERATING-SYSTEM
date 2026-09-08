@@ -10,17 +10,6 @@ import {
 import { Connector, ConnectorContext, ConnectorResult } from './connectors/connector.types';
 import { CreateIntegrationDto } from './dto/create-integration.dto';
 
-interface ResolvedIntegration {
-  id: string;
-  organizationId: string;
-  provider: string;
-  name: string;
-  type: string;
-  configuration: any;
-  credentials: Record<string, string>;
-  status: string;
-}
-
 @Injectable()
 export class IntegrationsService {
   private readonly logger = new Logger(IntegrationsService.name);

@@ -11,7 +11,7 @@
  *
  * Tokens: stored hashed in DB (sha256), sent raw in the email. 7-day TTL.
  */
-import { ConflictException, Injectable, Logger, Module, NotFoundException, BadRequestException } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { ConfigService } from '@nestjs/config';

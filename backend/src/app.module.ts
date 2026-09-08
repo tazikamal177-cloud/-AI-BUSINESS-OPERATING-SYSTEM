@@ -1,6 +1,6 @@
-import { Module, ValidationPipe } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_PIPE, APP_INTERCEPTOR, APP_GUARD, APP_FILTER } from '@nestjs/core';
+import { APP_INTERCEPTOR, APP_GUARD, APP_FILTER } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { UserThrottlerGuard } from './common/guards/user-throttler.guard';
 import { validateEnv } from './config/env';

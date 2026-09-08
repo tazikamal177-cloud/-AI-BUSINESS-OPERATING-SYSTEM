@@ -10,7 +10,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
 import { MailService } from '../mail/mail.service';

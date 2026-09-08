@@ -58,7 +58,7 @@ export class ActionNodeHandler implements NodeHandler {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(args)) {
       if (typeof v === 'string') {
-        out[k] = v.replace(/\{([a-zA-Z0-9_\.]+)\}/g, (_, key) => {
+        out[k] = v.replace(/\{([a-zA-Z0-9_.]+)\}/g, (_, key) => {
           const parts = key.split('.');
           let val: any = ctx.vars;
           for (const p of parts) {

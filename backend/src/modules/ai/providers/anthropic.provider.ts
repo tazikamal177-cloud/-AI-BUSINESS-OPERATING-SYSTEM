@@ -113,6 +113,7 @@ export class AnthropicProvider implements AIProvider {
     let currentToolJson = '';
     let stopReason: StreamChunk['finishReason'] = 'stop';
 
+    // eslint-disable-next-line no-constant-condition
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -205,7 +206,7 @@ export class AnthropicProvider implements AIProvider {
     return { system: sys || undefined, messages: messages.filter((m) => m.role !== 'system') };
   }
 
-  private toAnthropicMessages(messages: ChatMessage[], tools?: ToolSpec[]): any[] {
+  private toAnthropicMessages(messages: ChatMessage[], _tools?: ToolSpec[]): any[] {
     const out: any[] = [];
     for (const m of messages) {
       if (m.role === 'user') {

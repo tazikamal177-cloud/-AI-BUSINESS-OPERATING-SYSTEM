@@ -1,5 +1,4 @@
-import { IsEnum, IsObject, IsOptional, IsString, MinLength, ValidateNested } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsEnum, IsObject, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class WorkflowNodeDto {
   @IsString() id!: string;
